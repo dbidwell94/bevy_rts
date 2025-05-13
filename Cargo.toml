@@ -1,0 +1,28 @@
+[package]
+name = "bevy_rts"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+resolver = "2"
+
+[workspace.dependencies]
+bevy = { version = "^0.16", features = ["wayland"] }
+pathfinding = { version = "^4.14" }
+bevy-butler = "^0.6"
+leafwing-input-manager = "^0.17"
+
+[dependencies]
+bevy = { workspace = true }
+pathfinding = { workspace = true }
+bevy-butler = { workspace = true }
+leafwing-input-manager = { workspace = true }
+bevy-inspector-egui = "^0.31"
+
+# # Enable a small amount of optimization in the dev profile.
+# [profile.dev]
+# opt-level = 1
+
+# # Enable a large amount of optimization in the dev profile for dependencies.
+# [profile.dev.package."*"]
+# opt-level = 3
