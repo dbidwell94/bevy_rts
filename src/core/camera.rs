@@ -124,17 +124,18 @@ fn handle_camera_rotate(
 fn lerp_camera_to_target(
     mut camera_transform: Query<&mut Transform, (With<Camera3d>, Without<CameraTarget>)>,
     target_transform: Query<&GlobalTransform, (With<CameraTarget>, Without<Camera3d>)>,
+    time: Res<Time>,
 ) -> Result {
     let target_transform = target_transform.single()?;
     let mut camera_transform = camera_transform.single_mut()?;
 
     camera_transform.translation = camera_transform
         .translation
-        .lerp(target_transform.translation(), 0.0625);
+        .lerp(target_transform.translation(), 10. * time.delta_secs());
 
     camera_transform.rotation = camera_transform
         .rotation
-        .lerp(target_transform.rotation(), 0.0625);
+        .lerp(target_transform.rotation(), 10. * time.delta_secs());
 
     Ok(())
 }

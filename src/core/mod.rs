@@ -1,5 +1,6 @@
 mod camera;
-mod input;
+pub(crate) mod input;
+mod navmesh;
 mod simulation;
 
 use bevy::prelude::{Plugin as BevyPlugin, *};

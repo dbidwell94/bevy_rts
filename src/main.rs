@@ -1,5 +1,8 @@
 #![allow(clippy::type_complexity)]
 
+mod core;
+
+use avian3d::PhysicsPlugins;
 #[cfg(feature = "dev")]
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 #[cfg(feature = "dev")]
@@ -11,8 +14,6 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::{WgpuFeatures, WgpuSettings};
 #[cfg(feature = "dev")]
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
-
-mod core;
 
 fn main() -> AppExit {
     #[cfg(feature = "dev")]
@@ -54,6 +55,7 @@ fn main() -> AppExit {
         },
         #[cfg(feature = "dev")]
         WireframePlugin::default(),
+        PhysicsPlugins::default(),
     ))
     .add_plugins(core::Plugin);
 

@@ -3,6 +3,7 @@ use bevy::color::palettes::tailwind::*;
 use bevy::pbr::wireframe::Wireframe;
 use bevy::{prelude::*, render::mesh::VertexAttributeValues};
 use bevy_butler::*;
+use leafwing_input_manager::prelude::*;
 use noise::{MultiFractal, NoiseFn, Perlin};
 
 const TERRAIN_HEIGHT: f32 = 25.;
@@ -63,8 +64,29 @@ fn setup_ground_plane(
     commands.spawn((
         Mesh3d(plane_mesh),
         MeshMaterial3d(materials.add(Color::linear_rgb(0.1, 0.1, 0.1))),
-        //#[cfg(feature = "dev")]
-        //Wireframe,
         Terrain,
     ));
+}
+
+#[cfg(feature = "dev")]
+#[add_system(plugin = Plugin, schedule = Update)]
+fn debug_toggle_wireframe(
+    mut commands: Commands,
+    dev_input_query: Query<&ActionState<crate::core::input::DebugInput>>,
+    has_wireframe_query: Query<(Entity, Option<&Wireframe>), With<Terrain>>,
+) -> Result {
+    use crate::core::input::DebugInput;
+
+    let (terrain_entity, wireframe_opt) = has_wireframe_query.single()?;
+    let debug_controls = dev_input_query.single()?;
+    let has_wireframe = wireframe_opt.is_some();
+
+    if debug_controls.just_pressed(&DebugInput::ToggleWireframe) {
+        match has_wireframe {
+            true => commands.entity(terrain_entity).remove::<Wireframe>(),
+            false => commands.entity(terrain_entity).insert(Wireframe),
+        };
+    }
+
+    Ok(())
 }
