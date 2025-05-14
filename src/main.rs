@@ -1,6 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 #[cfg(feature = "dev")]
+use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
+#[cfg(feature = "dev")]
 use bevy::ecs::error::{GLOBAL_ERROR_HANDLER, error};
 use bevy::prelude::*;
 #[cfg(feature = "dev")]
@@ -27,6 +29,16 @@ fn main() -> AppExit {
             },
             #[cfg(feature = "dev")]
             WorldInspectorPlugin::new(),
+            #[cfg(feature = "dev")]
+            FpsOverlayPlugin {
+                config: FpsOverlayConfig {
+                    text_config: TextFont {
+                        font_size: 20.,
+                        ..default()
+                    },
+                    ..default()
+                },
+            },
         ))
         .add_plugins(core::Plugin)
         .run()
