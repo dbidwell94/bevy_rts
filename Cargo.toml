@@ -6,6 +6,9 @@ edition = "2024"
 [workspace]
 resolver = "2"
 
+[features]
+dev = ["bevy/dynamic_linking", "bevy/configurable_error_handler"]
+
 [workspace.dependencies]
 bevy = { version = "^0.16", features = ["wayland"] }
 pathfinding = { version = "^4.14" }

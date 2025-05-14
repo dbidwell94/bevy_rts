@@ -1,0 +1,122 @@
+//! Contains the core logic for camera systems, camera input, and lighting
+
+use super::input::CameraAction;
+use bevy::prelude::*;
+use bevy_butler::*;
+use leafwing_input_manager::prelude::*;
+
+const ZOOM_MIN: f32 = 10.;
+const ZOOM_MAX: f32 = 200.;
+
+#[butler_plugin]
+#[add_plugin(to_plugin = super::Plugin)]
+pub struct Plugin;
+
+#[derive(Component)]
+#[require(Transform)]
+struct CameraTarget;
+
+#[derive(Component)]
+#[require(Transform)]
+struct GroundTarget;
+
+#[add_system(schedule = Startup, plugin = Plugin)]
+fn init_camera(mut commands: Commands) {
+    let input_map = InputMap::default()
+        .with_dual_axis(CameraAction::Pan, VirtualDPad::wasd())
+        .with_axis(CameraAction::Zoom, MouseScrollAxis::Y)
+        .with_axis(
+            CameraAction::Rotate,
+            VirtualAxis::new(KeyCode::KeyQ, KeyCode::KeyE),
+        );
+
+    let camera_transform =
+        Transform::from_xyz(0., 50., 50.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y);
+
+    commands.spawn((
+        GroundTarget,
+        children![(CameraTarget, camera_transform, input_map)],
+    ));
+
+    commands.spawn((Camera3d::default(), camera_transform));
+
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 1500.0,
+            ..default()
+        },
+        Transform::from_xyz(0., 150., 0.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y),
+    ));
+}
+
+#[add_system(plugin = Plugin, schedule = Update)]
+fn handle_camera_pan(
+    action_query: Query<&ActionState<CameraAction>>,
+    mut ground_target_query: Query<&mut Transform, (Without<CameraTarget>, With<GroundTarget>)>,
+    camera_target_query: Query<&Transform, (With<CameraTarget>, Without<GroundTarget>)>,
+    time: Res<Time>,
+) -> Result {
+    let camera_action = action_query.single()?;
+    let mut ground_transform = ground_target_query.single_mut()?;
+    let camera_target_transform = camera_target_query.single()?;
+
+    let distance_scaler = (Vec3::ZERO - camera_target_transform.translation).length();
+
+    let pan_axis = camera_action.axis_pair(&CameraAction::Pan);
+
+    ground_transform.translation += Vec3::new(pan_axis.x, 0.0, -pan_axis.y)
+        * time.delta_secs()
+        * 500.0
+        * (distance_scaler / ZOOM_MAX);
+
+    Ok(())
+}
+
+#[add_system(plugin = Plugin, schedule = Update, after = handle_camera_pan)]
+fn handle_camera_zoom(
+    mut camera_target_query: Query<
+        (&mut Transform, &ActionState<CameraAction>),
+        With<CameraTarget>,
+    >,
+    time: Res<Time>,
+) -> Result {
+    let (mut target_transform, camera_action) = camera_target_query.single_mut()?;
+
+    let zoom_axis = camera_action.clamped_value(&CameraAction::Zoom);
+
+    // Ground transform will always be (0, 0, 0) relative to the CameraTarget
+    let direction_vec = Vec3::ZERO - target_transform.translation;
+    let direction = direction_vec.normalize_or_zero();
+
+    let new_trans =
+        target_transform.translation + (direction * time.delta_secs() * zoom_axis * 1000.);
+
+    let trans_to_set: Vec3 = match (Vec3::ZERO - new_trans).length() {
+        distance if distance < ZOOM_MIN => Vec3::ZERO - (direction * ZOOM_MIN),
+        distance if distance > ZOOM_MAX => Vec3::ZERO - (direction * ZOOM_MAX),
+        _ => new_trans,
+    };
+
+    target_transform.translation = trans_to_set;
+
+    Ok(())
+}
+
+#[add_system(plugin = Plugin, schedule = Update, after = handle_camera_zoom)]
+fn lerp_camera_to_target(
+    mut camera_transform: Query<&mut Transform, (With<Camera3d>, Without<CameraTarget>)>,
+    target_transform: Query<&GlobalTransform, (With<CameraTarget>, Without<Camera3d>)>,
+) -> Result {
+    let target_transform = target_transform.single()?;
+    let mut camera_transform = camera_transform.single_mut()?;
+
+    camera_transform.translation = camera_transform
+        .translation
+        .lerp(target_transform.translation(), 0.0625);
+
+    camera_transform.rotation = camera_transform
+        .rotation
+        .lerp(target_transform.rotation(), 0.0625);
+
+    Ok(())
+}
