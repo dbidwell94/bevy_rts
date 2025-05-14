@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
-const ZOOM_MIN: f32 = 10.;
+const ZOOM_MIN: f32 = 5.;
 const ZOOM_MAX: f32 = 200.;
 
 #[butler_plugin]
@@ -64,10 +64,12 @@ fn handle_camera_pan(
 
     let pan_axis = camera_action.axis_pair(&CameraAction::Pan);
 
-    ground_transform.translation += Vec3::new(pan_axis.x, 0.0, -pan_axis.y)
-        * time.delta_secs()
-        * 500.0
-        * (distance_scaler / ZOOM_MAX);
+    let move_direction = ground_transform
+        .rotation
+        .mul_vec3(Vec3::new(pan_axis.x, 0., -pan_axis.y));
+
+    ground_transform.translation +=
+        move_direction * time.delta_secs() * 500.0 * (distance_scaler / ZOOM_MAX);
 
     Ok(())
 }
@@ -88,21 +90,36 @@ fn handle_camera_zoom(
     let direction_vec = Vec3::ZERO - target_transform.translation;
     let direction = direction_vec.normalize_or_zero();
 
-    let new_trans =
-        target_transform.translation + (direction * time.delta_secs() * zoom_axis * 1000.);
+    let min_zoom_vec3 = Vec3::ZERO - (direction * ZOOM_MIN);
+    let max_zoom_vec3 = Vec3::ZERO - (direction * ZOOM_MAX);
 
-    let trans_to_set: Vec3 = match (Vec3::ZERO - new_trans).length() {
-        distance if distance < ZOOM_MIN => Vec3::ZERO - (direction * ZOOM_MIN),
-        distance if distance > ZOOM_MAX => Vec3::ZERO - (direction * ZOOM_MAX),
-        _ => new_trans,
-    };
+    let new_trans = (target_transform.translation
+        + (direction * time.delta_secs() * zoom_axis * 1000.))
+        .clamp(min_zoom_vec3, max_zoom_vec3);
 
-    target_transform.translation = trans_to_set;
+    target_transform.translation = new_trans;
 
     Ok(())
 }
 
 #[add_system(plugin = Plugin, schedule = Update, after = handle_camera_zoom)]
+fn handle_camera_rotate(
+    mut ground_target_query: Query<&mut Transform, (Without<CameraTarget>, With<GroundTarget>)>,
+    camera_action_query: Query<&ActionState<CameraAction>>,
+    time: Res<Time>,
+) -> Result {
+    let mut ground_target_transform = ground_target_query.single_mut()?;
+    let camera_action = camera_action_query.single()?;
+
+    let camera_rotation = camera_action.value(&CameraAction::Rotate);
+
+    ground_target_transform
+        .rotate_y(Rot2::degrees(camera_rotation * time.delta_secs() * 250.).as_radians());
+
+    Ok(())
+}
+
+#[add_system(plugin = Plugin, schedule = Update, after = handle_camera_rotate)]
 fn lerp_camera_to_target(
     mut camera_transform: Query<&mut Transform, (With<Camera3d>, Without<CameraTarget>)>,
     target_transform: Query<&GlobalTransform, (With<CameraTarget>, Without<Camera3d>)>,
