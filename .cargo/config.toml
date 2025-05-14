@@ -4,3 +4,4 @@ rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
 
 [alias]
 dev = "run --features dev"
+release = "build --release"
