@@ -2,7 +2,7 @@
 
 mod core;
 
-use avian3d::PhysicsPlugins;
+use avian3d::prelude::*;
 #[cfg(feature = "dev")]
 use bevy::dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
 #[cfg(feature = "dev")]
@@ -55,9 +55,18 @@ fn main() -> AppExit {
         },
         #[cfg(feature = "dev")]
         WireframePlugin::default(),
+        #[cfg(feature = "dev")]
+        PhysicsDebugPlugin::default(),
         PhysicsPlugins::default(),
     ))
-    .add_plugins(core::Plugin);
+    .add_plugins(core::Plugin)
+    .insert_gizmo_config(
+        PhysicsGizmos {
+            aabb_color: Some(Color::WHITE),
+            ..default()
+        },
+        GizmoConfig::default(),
+    );
 
     #[cfg(feature = "dev")]
     app.insert_resource(WireframeConfig::default());

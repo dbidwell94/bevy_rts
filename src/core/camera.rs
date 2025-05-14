@@ -1,12 +1,19 @@
 //! Contains the core logic for camera systems, camera input, and lighting
 
-use super::input::CameraAction;
+use core::f32;
+
+use super::{
+    input::CameraAction,
+    simulation::{TERRAIN_HEIGHT, Terrain, setup_ground_plane},
+};
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
 const ZOOM_MIN: f32 = 5.;
-const ZOOM_MAX: f32 = 500.;
+const ZOOM_MAX: f32 = 1000.;
+const CAMERA_PAN_SPEED: f32 = 1000.;
 
 #[butler_plugin]
 #[add_plugin(to_plugin = super::Plugin)]
@@ -20,8 +27,8 @@ struct CameraTarget;
 #[require(Transform)]
 struct GroundTarget;
 
-#[add_system(schedule = Startup, plugin = Plugin)]
-fn init_camera(mut commands: Commands) {
+#[add_system(schedule = Startup, plugin = Plugin, after = setup_ground_plane)]
+fn init_camera(mut commands: Commands) -> Result {
     let input_map = InputMap::default()
         .with_dual_axis(CameraAction::Pan, VirtualDPad::wasd())
         .with_axis(CameraAction::Zoom, MouseScrollAxis::Y)
@@ -34,6 +41,7 @@ fn init_camera(mut commands: Commands) {
         Transform::from_xyz(0., 50., 50.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y);
 
     commands.spawn((
+        RayCaster::new(Vec3::new(0., TERRAIN_HEIGHT * 2., 0.), -Dir3::Y),
         GroundTarget,
         children![(CameraTarget, camera_transform, input_map)],
     ));
@@ -47,6 +55,7 @@ fn init_camera(mut commands: Commands) {
         },
         Transform::from_xyz(0., 150., 0.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y),
     ));
+    Ok(())
 }
 
 #[add_system(plugin = Plugin, schedule = Update)]
@@ -54,8 +63,10 @@ fn handle_camera_pan(
     action_query: Query<&ActionState<CameraAction>>,
     mut ground_target_query: Query<&mut Transform, (Without<CameraTarget>, With<GroundTarget>)>,
     camera_target_query: Query<&Transform, (With<CameraTarget>, Without<GroundTarget>)>,
+    ground_raycast: Query<(&RayCaster, &RayHits), With<GroundTarget>>,
     time: Res<Time>,
 ) -> Result {
+    let (caster, hits) = ground_raycast.single()?;
     let camera_action = action_query.single()?;
     let mut ground_transform = ground_target_query.single_mut()?;
     let camera_target_transform = camera_target_query.single()?;
@@ -69,7 +80,11 @@ fn handle_camera_pan(
         .mul_vec3(Vec3::new(pan_axis.x, 0., -pan_axis.y));
 
     ground_transform.translation +=
-        move_direction * time.delta_secs() * 500.0 * (distance_scaler / ZOOM_MAX);
+        move_direction * time.delta_secs() * CAMERA_PAN_SPEED * (distance_scaler / ZOOM_MAX);
+
+    if let Some(hit) = hits.iter().next() {
+        let y = (caster.origin + caster.direction * hit.distance).y;
+    }
 
     Ok(())
 }
@@ -95,7 +110,12 @@ fn handle_camera_zoom(
     let max_zoom_vec3 = Vec3::ZERO - (direction * ZOOM_MAX);
 
     let new_trans = (target_transform.translation
-        + (direction * time.delta_secs() * zoom_axis * 7500. * (distance / ZOOM_MAX)))
+        + (direction
+            * time.delta_secs()
+            * zoom_axis
+            * CAMERA_PAN_SPEED
+            * 50.
+            * (distance / ZOOM_MAX)))
         .clamp(min_zoom_vec3, max_zoom_vec3);
 
     target_transform.translation = new_trans;

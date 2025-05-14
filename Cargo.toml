@@ -19,6 +19,7 @@ pathfinding = { version = "^4.14" }
 bevy-butler = "^0.6"
 leafwing-input-manager = "^0.17"
 avian3d = { version = "^0.3", features = ["3d", "collider-from-mesh"] }
+rand = { version = "^0.9" }
 
 [dependencies]
 bevy = { workspace = true }
@@ -28,6 +29,7 @@ leafwing-input-manager = { workspace = true }
 bevy-inspector-egui = "^0.31"
 noise = { version = "^0.9" }
 avian3d = { workspace = true }
+rand = { workspace = true }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
