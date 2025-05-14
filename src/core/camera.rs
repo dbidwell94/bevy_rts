@@ -6,7 +6,7 @@ use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
 const ZOOM_MIN: f32 = 5.;
-const ZOOM_MAX: f32 = 200.;
+const ZOOM_MAX: f32 = 500.;
 
 #[butler_plugin]
 #[add_plugin(to_plugin = super::Plugin)]
@@ -42,7 +42,7 @@ fn init_camera(mut commands: Commands) {
 
     commands.spawn((
         DirectionalLight {
-            illuminance: 1500.0,
+            illuminance: light_consts::lux::OVERCAST_DAY,
             ..default()
         },
         Transform::from_xyz(0., 150., 0.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y),
@@ -88,13 +88,14 @@ fn handle_camera_zoom(
 
     // Ground transform will always be (0, 0, 0) relative to the CameraTarget
     let direction_vec = Vec3::ZERO - target_transform.translation;
+    let distance = direction_vec.length();
     let direction = direction_vec.normalize_or_zero();
 
     let min_zoom_vec3 = Vec3::ZERO - (direction * ZOOM_MIN);
     let max_zoom_vec3 = Vec3::ZERO - (direction * ZOOM_MAX);
 
     let new_trans = (target_transform.translation
-        + (direction * time.delta_secs() * zoom_axis * 1000.))
+        + (direction * time.delta_secs() * zoom_axis * 7500. * (distance / ZOOM_MAX)))
         .clamp(min_zoom_vec3, max_zoom_vec3);
 
     target_transform.translation = new_trans;

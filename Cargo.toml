@@ -25,6 +25,7 @@ pathfinding = { workspace = true }
 bevy-butler = { workspace = true }
 leafwing-input-manager = { workspace = true }
 bevy-inspector-egui = "^0.31"
+noise = { version = "^0.9" }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
