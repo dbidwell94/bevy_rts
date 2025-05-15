@@ -1,11 +1,10 @@
+use super::Seed;
 use avian3d::prelude::*;
 use bevy::color::palettes::tailwind::*;
 use bevy::{prelude::*, render::mesh::VertexAttributeValues};
 use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 use noise::{MultiFractal, NoiseFn, Perlin};
-
-use super::Seed;
 
 pub const TERRAIN_HEIGHT: f32 = 100.;
 const TERRAIN_SIZE: u32 = 2000;
@@ -73,6 +72,7 @@ pub fn setup_ground_plane(
         MeshMaterial3d(materials.add(Color::WHITE)),
         Terrain,
         DebugRender::none(),
+        Name::new("Terrain Mesh"),
     ));
     Ok(())
 }

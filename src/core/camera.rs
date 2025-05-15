@@ -27,6 +27,10 @@ struct CameraTarget;
 #[require(Transform)]
 struct GroundTarget;
 
+#[derive(Component)]
+#[require(Transform)]
+struct GroundCaster;
+
 #[add_system(schedule = Startup, plugin = Plugin, after = setup_ground_plane)]
 fn init_camera(mut commands: Commands) -> Result {
     let input_map = InputMap::default()
@@ -41,10 +45,11 @@ fn init_camera(mut commands: Commands) -> Result {
         Transform::from_xyz(0., 50., 50.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y);
 
     commands.spawn((
-        RayCaster::new(Vec3::new(0., TERRAIN_HEIGHT * 2., 0.), -Dir3::Y),
         GroundTarget,
         children![(CameraTarget, camera_transform, input_map)],
     ));
+
+    commands.spawn((RayCaster::new(Vec3::ZERO, -Dir3::Y), GroundCaster));
 
     commands.spawn((Camera3d::default(), camera_transform));
 
@@ -61,15 +66,42 @@ fn init_camera(mut commands: Commands) -> Result {
 #[add_system(plugin = Plugin, schedule = Update)]
 fn handle_camera_pan(
     action_query: Query<&ActionState<CameraAction>>,
-    mut ground_target_query: Query<&mut Transform, (Without<CameraTarget>, With<GroundTarget>)>,
-    camera_target_query: Query<&Transform, (With<CameraTarget>, Without<GroundTarget>)>,
-    ground_raycast: Query<(&RayCaster, &RayHits), With<GroundTarget>>,
+    mut ground_target_query: Query<
+        &mut Transform,
+        (
+            Without<CameraTarget>,
+            Without<GroundCaster>,
+            With<GroundTarget>,
+        ),
+    >,
+    camera_target_query: Query<
+        &Transform,
+        (
+            With<CameraTarget>,
+            Without<GroundTarget>,
+            Without<GroundCaster>,
+        ),
+    >,
+    mut ground_raycast: Query<
+        (&RayCaster, &RayHits, &mut Transform),
+        (
+            With<GroundCaster>,
+            Without<CameraTarget>,
+            Without<GroundTarget>,
+        ),
+    >,
     time: Res<Time>,
 ) -> Result {
-    let (caster, hits) = ground_raycast.single()?;
+    let (caster, hits, mut caster_transform) = ground_raycast.single_mut()?;
     let camera_action = action_query.single()?;
     let mut ground_transform = ground_target_query.single_mut()?;
     let camera_target_transform = camera_target_query.single()?;
+
+    caster_transform.translation = Vec3::new(
+        ground_transform.translation.x,
+        TERRAIN_HEIGHT * 2.,
+        ground_transform.translation.z,
+    );
 
     let distance_scaler = (Vec3::ZERO - camera_target_transform.translation).length();
 
@@ -83,7 +115,8 @@ fn handle_camera_pan(
         move_direction * time.delta_secs() * CAMERA_PAN_SPEED * (distance_scaler / ZOOM_MAX);
 
     if let Some(hit) = hits.iter().next() {
-        let y = (caster.origin + caster.direction * hit.distance).y;
+        let y = (caster.global_origin() + caster.global_direction() * hit.distance).y;
+        ground_transform.translation.y = y;
     }
 
     Ok(())
