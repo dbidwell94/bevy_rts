@@ -1,8 +1,7 @@
-mod terrain;
+pub mod terrain;
 
 use bevy::prelude::*;
 use bevy_butler::*;
-pub use terrain::{TERRAIN_HEIGHT, setup_ground_plane};
 
 #[derive(Component)]
 pub struct Terrain;

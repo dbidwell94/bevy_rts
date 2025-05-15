@@ -4,10 +4,10 @@ use core::f32;
 
 use super::{
     input::CameraAction,
-    simulation::{TERRAIN_HEIGHT, setup_ground_plane},
+    simulation::terrain::{TERRAIN_HEIGHT, Terrain},
 };
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, render::primitives::Aabb};
 use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
@@ -31,7 +31,7 @@ struct GroundTarget;
 #[require(Transform)]
 struct GroundCaster;
 
-#[add_system(schedule = Startup, plugin = Plugin, after = setup_ground_plane)]
+#[add_system(schedule = Startup, plugin = Plugin)]
 fn init_camera(mut commands: Commands) -> Result {
     let input_map = InputMap::default()
         .with_dual_axis(CameraAction::Pan, VirtualDPad::wasd())
@@ -90,12 +90,14 @@ fn handle_camera_pan(
             Without<GroundTarget>,
         ),
     >,
+    terrain_query: Query<Option<&Aabb>, With<Terrain>>,
     time: Res<Time>,
 ) -> Result {
     let (caster, hits, mut caster_transform) = ground_raycast.single_mut()?;
     let camera_action = action_query.single()?;
     let mut ground_transform = ground_target_query.single_mut()?;
     let camera_target_transform = camera_target_query.single()?;
+    let terrain_extents = terrain_query.single()?;
 
     caster_transform.translation = Vec3::new(
         ground_transform.translation.x,
@@ -117,6 +119,12 @@ fn handle_camera_pan(
     if let Some(hit) = hits.iter().next() {
         let y = (caster.global_origin() + caster.global_direction() * hit.distance).y;
         ground_transform.translation.y = y;
+    }
+
+    if let Some(extents) = terrain_extents {
+        ground_transform.translation = ground_transform
+            .translation
+            .clamp(extents.min().into(), extents.max().into());
     }
 
     Ok(())

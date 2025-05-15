@@ -43,7 +43,7 @@ pub fn setup_ground_plane(
         let mut colors: Vec<[f32; 4]> = Vec::new();
         for pos in positions.iter_mut() {
             pos[1] =
-                noise.get([pos[0] as f64 / 1000., pos[2] as f64 / 1000.]) as f32 * TERRAIN_HEIGHT;
+                noise.get([pos[0] as f64 / 2000., pos[2] as f64 / 2000.]) as f32 * TERRAIN_HEIGHT;
 
             let g = pos[1] / TERRAIN_HEIGHT * 2.;
             colors.push(
