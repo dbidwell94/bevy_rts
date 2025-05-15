@@ -4,7 +4,7 @@ use core::f32;
 
 use super::{
     input::CameraAction,
-    simulation::{TERRAIN_HEIGHT, Terrain, setup_ground_plane},
+    simulation::{TERRAIN_HEIGHT, setup_ground_plane},
 };
 use avian3d::prelude::*;
 use bevy::prelude::*;
