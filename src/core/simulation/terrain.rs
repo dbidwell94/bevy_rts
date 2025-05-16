@@ -48,9 +48,9 @@ pub fn setup_ground_plane(
             let g = pos[1] / TERRAIN_HEIGHT * 2.;
             colors.push(
                 match g {
-                    g if g > 0.5 => Color::WHITE,
+                    g if g > 0.5 => Color::from(STONE_500),
                     g if g > -0.15 => Color::from(STONE_800),
-                    g if g >= -0.85 => Color::BLACK,
+                    g if g >= -0.85 => Color::from(NEUTRAL_800),
                     _ => Color::from(BLUE_600),
                 }
                 .to_linear()
@@ -66,10 +66,15 @@ pub fn setup_ground_plane(
     // build the ground mesh plane
     let plane_mesh = meshes.add(terrain);
 
+    let material = StandardMaterial {
+        perceptual_roughness: 0.825,
+        ..default()
+    };
+
     commands.spawn((
         ColliderConstructor::TrimeshFromMeshWithConfig(TrimeshFlags::empty()),
         Mesh3d(plane_mesh),
-        MeshMaterial3d(materials.add(Color::WHITE)),
+        MeshMaterial3d(materials.add(material)),
         Terrain,
         DebugRender::none(),
         Name::new("Terrain Mesh"),

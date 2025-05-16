@@ -1,13 +1,28 @@
 //! Contains the core logic for camera systems, camera input, and lighting
 
-use core::f32;
-
 use super::{
     input::CameraAction,
     simulation::terrain::{TERRAIN_HEIGHT, Terrain},
 };
 use avian3d::prelude::*;
-use bevy::{prelude::*, render::primitives::Aabb};
+use bevy::color::palettes::tailwind::*;
+use bevy::{
+    core_pipeline::{
+        auto_exposure::{AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin},
+        bloom::Bloom,
+        motion_blur::MotionBlur,
+        smaa::Smaa,
+        tonemapping::Tonemapping,
+    },
+    math::cubic_splines::LinearSpline,
+    pbr::Atmosphere,
+    prelude::{Plugin as BevyPlugin, *},
+    render::{
+        camera::{Exposure, PhysicalCameraParameters},
+        primitives::Aabb,
+        view::{ColorGrading, ColorGradingGlobal, ColorGradingSection},
+    },
+};
 use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
@@ -15,9 +30,15 @@ const ZOOM_MIN: f32 = 5.;
 const ZOOM_MAX: f32 = 1000.;
 const CAMERA_PAN_SPEED: f32 = 1000.;
 
-#[butler_plugin]
 #[add_plugin(to_plugin = super::Plugin)]
 pub struct Plugin;
+
+#[butler_plugin]
+impl BevyPlugin for Plugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(AutoExposurePlugin);
+    }
+}
 
 #[derive(Component)]
 #[require(Transform)]
@@ -31,8 +52,17 @@ struct GroundTarget;
 #[require(Transform)]
 struct GroundCaster;
 
+#[derive(Component)]
+pub struct Sun;
+
+#[derive(Component)]
+pub struct Moon;
+
 #[add_system(schedule = Startup, plugin = Plugin)]
-fn init_camera(mut commands: Commands) -> Result {
+fn init_camera(
+    mut commands: Commands,
+    mut compensation_curve: ResMut<Assets<AutoExposureCompensationCurve>>,
+) -> Result {
     let input_map = InputMap::default()
         .with_dual_axis(CameraAction::Pan, VirtualDPad::wasd())
         .with_axis(CameraAction::Zoom, MouseScrollAxis::Y)
@@ -51,14 +81,68 @@ fn init_camera(mut commands: Commands) -> Result {
 
     commands.spawn((RayCaster::new(Vec3::ZERO, -Dir3::Y), GroundCaster));
 
-    commands.spawn((Camera3d::default(), camera_transform));
-
     commands.spawn((
-        DirectionalLight {
-            illuminance: light_consts::lux::OVERCAST_DAY,
+        Camera3d::default(),
+        Atmosphere::EARTH,
+        // MotionBlur::default(),
+        Msaa::Off,
+        ColorGrading {
+            highlights: ColorGradingSection { ..default() },
+            shadows: ColorGradingSection {
+                contrast: 1.00625,
+                ..default()
+            },
+            global: ColorGradingGlobal {
+                exposure: -0.5,
+                ..default()
+            },
             ..default()
         },
-        Transform::from_xyz(0., 150., 0.).looking_at(Vec3::new(0., 0., 0.), Dir3::Y),
+        Smaa::default(),
+        AutoExposure {
+            speed_darken: 1.0,
+            speed_brighten: 0.8,
+            range: -20.0..=180.0,
+            filter: 0.011..=0.99,
+            compensation_curve: compensation_curve.add(AutoExposureCompensationCurve::from_curve(
+                LinearSpline::new([vec2(-4.0, -2.0), vec2(0., 0.), vec2(2.0, 0.), vec2(4.0, 2.)]),
+            )?),
+            ..default()
+        },
+        Tonemapping::AcesFitted,
+        Camera {
+            hdr: true,
+            ..default()
+        },
+        camera_transform,
+    ));
+
+    // sunlight
+    let sun_transform = Transform::from_xyz(0., 150., 0.);
+    commands.spawn((
+        DirectionalLight {
+            illuminance: light_consts::lux::RAW_SUNLIGHT,
+            color: Color::from(YELLOW_100),
+            shadows_enabled: true,
+            ..default()
+        },
+        sun_transform,
+        Sun,
+    ));
+
+    // moonlight
+
+    let mut moon_transform = sun_transform;
+    moon_transform.rotation = sun_transform.rotation.inverse();
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 10_000.0,
+            color: Color::from(SLATE_300),
+            shadows_enabled: true,
+            ..default()
+        },
+        moon_transform,
+        Moon,
     ));
     Ok(())
 }
